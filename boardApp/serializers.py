@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import User
+from .models import User, Post
+
 
 class UserSignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)  # 비밀번호는 응답에서 제외
@@ -17,3 +18,9 @@ class UserSignupSerializer(serializers.ModelSerializer):
         )
         user.set_password(validated_data['password'])  # 비밀번호 해싱 후 저장
         return user
+
+
+class PostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ['id', 'title', 'content', 'author', 'created_at', 'updated_at']
