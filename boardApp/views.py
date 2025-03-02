@@ -73,16 +73,27 @@ class PostCreateAPIView(APIView):
             return Response({'detail': 'Invalid user_id'}, status=status.HTTP_400_BAD_REQUEST)
 
 
+def get_post_or_403(pk, user_id):
+    """Post 객체를 가져오고, user_id가 author인지 검증"""
+    post = get_object_or_404(Post, pk=pk)
+
+    if not user_id:
+        return Response({'detail': 'user_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if post.author_id != user_id:
+        return Response({'detail': 'Invalid user_id'}, status=status.HTTP_400_BAD_REQUEST)
+
+    return post  # 검증된 Post 객체 반환
+
 class PostUpdateAPIView(APIView):
     def put(self, request, pk=None, *args, **kwargs):
         try:
-            post = Post.objects.get(pk=pk)  # pk로 Post 객체 찾기
-
             user_id = request.data.get('user_id')
-            if not user_id:
-                return Response({'detail': 'user_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
-            if post.author_id != user_id:
-                return Response({'detail': 'Invalid user_id'}, status=status.HTTP_400_BAD_REQUEST)
+            post_or_response = get_post_or_403(pk=pk, user_id=user_id)
+
+            if isinstance(post_or_response, Response):
+                return post_or_response # 에러 응답 반환
+
+            post = post_or_response
 
             update_title = request.data.get('title')
             update_content = request.data.get('content')
@@ -102,8 +113,11 @@ class PostUpdateAPIView(APIView):
 class PostDeleteAPIView(APIView):
     def delete(self, request, pk=None, *args, **kwargs):
         try:
-            post = Post.objects.get(pk=pk)  # pk로 Post 객체 찾기
-            post.delete()  # 게시글 삭제
+            user_id = request.data.get('user_id')
+            post_or_response = get_post_or_403(pk=pk, user_id=user_id)
+            if isinstance(post_or_response, Response):
+                return post_or_response
+            post_or_response.delete()  # 게시글 삭제
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Post.DoesNotExist:
             return Response({'detail': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
