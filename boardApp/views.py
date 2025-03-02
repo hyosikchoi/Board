@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.utils import timezone
 
 # Create your views here.
 from rest_framework.views import APIView
@@ -100,6 +101,7 @@ class PostUpdateAPIView(APIView):
 
             post.title = update_title
             post.content = update_content
+            post.updated_at = timezone.now()
             # 기존 Post 객체를 업데이트할 serializer 생성
             serializer = PostSerializer(post, data=request.data, partial=True)
             if serializer.is_valid():
