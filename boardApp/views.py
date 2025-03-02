@@ -24,7 +24,6 @@ class SignupView(APIView):
 
 class LoginView(APIView):
     """로그인 API"""
-
     def post(self, request):
         email = request.data.get('email')
         password = request.data.get('password')
@@ -43,6 +42,16 @@ class PostListAPIView(APIView):
         serializer = PostSerializer(posts, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+class PostAPIView(APIView):
+    def get(self, request, pk, *args, **kwargs):
+
+        try:
+            # 게시글 조회
+            post = Post.objects.get(pk=pk)
+            serializer = PostSerializer(post)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Post.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
 class PostCreateAPIView(APIView):
     def post(self, request, *args, **kwargs):
@@ -68,6 +77,18 @@ class PostUpdateAPIView(APIView):
     def put(self, request, pk=None, *args, **kwargs):
         try:
             post = Post.objects.get(pk=pk)  # pk로 Post 객체 찾기
+
+            user_id = request.data.get('user_id')
+            if not user_id:
+                return Response({'detail': 'user_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            if post.author_id != user_id:
+                return Response({'detail': 'Invalid user_id'}, status=status.HTTP_400_BAD_REQUEST)
+
+            update_title = request.data.get('title')
+            update_content = request.data.get('content')
+
+            post.title = update_title
+            post.content = update_content
             # 기존 Post 객체를 업데이트할 serializer 생성
             serializer = PostSerializer(post, data=request.data, partial=True)
             if serializer.is_valid():
