@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Post
+from .models import User, Post, Comment
 
 
 class UserSignupSerializer(serializers.ModelSerializer):
@@ -21,6 +21,19 @@ class UserSignupSerializer(serializers.ModelSerializer):
 
 
 class PostSerializer(serializers.ModelSerializer):
+    author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    author_email = serializers.EmailField(source='author.email', read_only=True)
+
     class Meta:
         model = Post
-        fields = ['id', 'title', 'content', 'author', 'created_at', 'updated_at']
+        fields = ['id', 'title', 'content', 'author', 'author_email', 'created_at', 'updated_at']
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    post = serializers.PrimaryKeyRelatedField(queryset=Post.objects.all())
+    author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    author_email = serializers.EmailField(source='author.email', read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = ['id', 'post', 'author', 'author_email','content','created_at', 'updated_at']
