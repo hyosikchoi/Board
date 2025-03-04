@@ -41,7 +41,8 @@ class LoginView(APIView):
 class PostListAPIView(APIView):
     def get(self, request, *args, **kwargs):
         # 모든 게시글 조회
-        posts = Post.objects.select_related('author').all().order_by('-created_at')
+        # prefetch 에서 comment 를 단 author 를 표기해야 하므로 comments__author 로 설정한다.
+        posts = Post.objects.select_related('author').prefetch_related('comments', 'comments__author').all().order_by('-created_at', '-comments__created_at')
         # 게시글 목록을 직렬화
         serializer = PostSerializer(posts, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -50,7 +51,7 @@ class PostAPIView(APIView):
     def get(self, request, pk, *args, **kwargs):
         try:
             # 게시글 조회
-            post = Post.objects.select_related('author').get(pk=pk)
+            post = Post.objects.select_related('author').prefetch_related('comments').get(pk=pk)
             serializer = PostSerializer(post)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Post.DoesNotExist:
@@ -58,18 +59,8 @@ class PostAPIView(APIView):
 
 class PostCreateAPIView(APIView):
     def post(self, request, *args, **kwargs):
-        user_id = request.data.get('user_id')  # 요청 본문에서 user_id를 가져옴
         try:
-            user = User.objects.get(id=user_id)  # user_id로 User 객체를 찾음
-            # Post 객체를 생성하는 serializer 생성
-            serializer = PostSerializer(
-                data={
-                    'title': request.data.get('title'),
-                    'content': request.data.get('content'),
-                    'author': user.id,
-                    'author_email': user.email,
-                }
-            )
+            serializer = PostSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             serializer.save()  # 게시글 생성 시 author를 설정
             return Response(serializer.data, status=status.HTTP_201_CREATED)

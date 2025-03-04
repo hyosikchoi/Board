@@ -19,16 +19,6 @@ class UserSignupSerializer(serializers.ModelSerializer):
         user.set_password(validated_data['password'])  # 비밀번호 해싱 후 저장
         return user
 
-
-class PostSerializer(serializers.ModelSerializer):
-    author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
-    author_email = serializers.EmailField(source='author.email', read_only=True)
-
-    class Meta:
-        model = Post
-        fields = ['id', 'title', 'content', 'author', 'author_email', 'created_at', 'updated_at']
-
-
 class CommentSerializer(serializers.ModelSerializer):
     post = serializers.PrimaryKeyRelatedField(queryset=Post.objects.all())
     author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
@@ -37,3 +27,16 @@ class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = ['id', 'post', 'author', 'author_email','content','created_at', 'updated_at']
+
+
+class PostSerializer(serializers.ModelSerializer):
+    author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    author_email = serializers.EmailField(source='author.email', read_only=True)
+    comments = CommentSerializer(many=True, read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = Post
+        fields = ['id', 'title', 'content', 'author', 'author_email', 'comments', 'created_at', 'updated_at']
+
