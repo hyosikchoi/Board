@@ -1,14 +1,20 @@
 from rest_framework.routers import DefaultRouter
 from rest_framework.urlpatterns import format_suffix_patterns
 from django.urls import path, include
-from .views import SignupView, LoginView, PostCreateAPIView, PostUpdateAPIView, PostDeleteAPIView, PostListAPIView, \
-    PostAPIView, CommentAPIView
+from .views import SignupView, LoginView, PostCreateAPIView, PostUpdateAPIView, PostDeleteAPIView, PostAPIView, \
+    CommentAPIView, PostListViewSet
+
+router = DefaultRouter()
+
+# basename='posts' 을 정의할지 말지는 선택.
+# 정의할 시 viewSet에서 query_set 을 지정 안해줘도 괜찮음.
+router.register(r'posts', PostListViewSet, basename='posts')
 
 urlpatterns = [
     path('signup/', SignupView.as_view(), name='signup'),
     path('login/', LoginView.as_view(), name='login'),
 
-    path('posts/', PostListAPIView.as_view(), name='post-list'),  # 게시글 리스트
+    path('', include(router.urls)),  # 게시글 리스트
 
     path('posts/<int:pk>/', PostAPIView.as_view(), name='post-detail'),  # 게시글 디테일
 

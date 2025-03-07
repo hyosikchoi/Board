@@ -33,10 +33,22 @@ class PostSerializer(serializers.ModelSerializer):
     author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     author_email = serializers.EmailField(source='author.email', read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
-    created_at = serializers.DateTimeField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True) # serializer 에서 read_only 로 설정 해줘야함.
     updated_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = Post
         fields = ['id', 'title', 'content', 'author', 'author_email', 'comments', 'created_at', 'updated_at']
 
+
+
+class UserPostsSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    post_count = serializers.IntegerField()
+
+
+class StatisticsSerializer(serializers.Serializer):
+    today_posts = serializers.IntegerField()
+    today_post_avg = serializers.FloatField()
+    user_posts = serializers.ListSerializer(child=UserPostsSerializer())
+    total_count = serializers.IntegerField()

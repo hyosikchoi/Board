@@ -1,15 +1,18 @@
+from django.db.migrations import serializer
+from django.db.models import Prefetch, Count, F, Value, Subquery, Sum
 from django.forms.models import model_to_dict
 from django.shortcuts import render
 from django.utils import timezone
+from rest_framework.decorators import action
 
 # Create your views here.
 from rest_framework.views import APIView
-from .serializers import UserSignupSerializer, CommentSerializer
+from .serializers import UserSignupSerializer, CommentSerializer, StatisticsSerializer
 from django.shortcuts import get_object_or_404
 from .models import User, Comment
 
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, mixins, viewsets
 from .models import Post
 from .serializers import PostSerializer
 
@@ -37,15 +40,67 @@ class LoginView(APIView):
 
         return Response({"message": "로그인 성공", "User": user.id}, status=status.HTTP_200_OK)
 
+
 # 게시글 관련
-class PostListAPIView(APIView):
-    def get(self, request, *args, **kwargs):
-        # 모든 게시글 조회
-        # prefetch 에서 comment 를 단 author 를 표기해야 하므로 comments__author 로 설정한다.
-        posts = Post.objects.select_related('author').prefetch_related('comments', 'comments__author').all().order_by('-created_at', '-comments__created_at')
-        # 게시글 목록을 직렬화
-        serializer = PostSerializer(posts, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+class PostListViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    serializer_class = PostSerializer
+
+    def get_queryset(self):
+        comment_prefetch = Prefetch(
+            'comments',
+            queryset= Comment.objects.select_related('author').order_by('-created_at'),
+        )
+
+        return Post.objects.select_related('author').prefetch_related(comment_prefetch).all().order_by('-created_at')
+
+
+    # filter_backends = (filters.SearchFilter, filters.OrderingFilter)
+    # def get(self, request, *args, **kwargs):
+    #     # 모든 게시글 조회
+    #     # prefetch 에서 comment 를 단 author 를 표기해야 하므로 comments__author 로 설정한다.
+    #     posts = Post.objects.select_related('author').prefetch_related('comments', 'comments__author').all().order_by('-created_at', '-comments__created_at')
+    #     # 게시글 목록을 직렬화
+    #     serializer = PostSerializer(posts, many=True)
+    #     return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path="statistics")
+    def get_counts(self, request, pk=None):
+
+        today= timezone.localdate()
+
+        today_post_count = Post.objects.filter(created_at__date=today).order_by('-created_at').all().count()
+
+        today_post_avg = (float(User.objects.all().count()) / float(today_post_count)) if today_post_count > 0 else 0.0
+
+        # values 는 object 를 반환하는게 아닌 원하는 필드만 dictionary 형태로 반환하게 해준다!
+        each_user_post = User.objects.annotate(post_count=Count('posts')).values( 'name', 'post_count').order_by('-post_count').all()
+
+        total_count = Post.objects.aggregate(posts=Sum('id')).get("posts", 0)
+
+        statistics_serializer = StatisticsSerializer(
+            instance= {
+                'today_posts' : today_post_count,
+                'today_post_avg' : today_post_avg,
+                'user_posts': each_user_post,
+                'total_count' : total_count,
+            }
+        )
+
+        return Response(statistics_serializer.data, status=status.HTTP_200_OK)
+
+    # 수요일
+    # drf-spectacular 붙이기
+    # 로그인 기능 붙이기 Authorization: Bearer xxxxx
+    # delete -> DELETE / update -> PUT 구현 -> 작성자만 가능 /게시글 id/
+    # 금요일
+    # 내가 보기좋게 나누기
+    # Optional:
+    # - 관리자는 모든 글 삭제 수정 가능
+    # - 통계기능은 관리가만 조회 가능 (get_count)
+    # 테스트 만들어보기
+
+
+
 
 class PostAPIView(APIView):
     def get(self, request, pk, *args, **kwargs):

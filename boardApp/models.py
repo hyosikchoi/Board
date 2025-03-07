@@ -1,3 +1,5 @@
+from xml.dom.minidom import Comment
+
 from django.db import models
 
 # Create your models here.
@@ -5,6 +7,8 @@ from django.contrib.auth.models import AbstractUser,AbstractBaseUser
 
 from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
+from django.db.models import Case, When, Subquery
+
 
 class User(models.Model):
     """사용자 모델"""
@@ -35,16 +39,20 @@ class User(models.Model):
     def __str__(self):
         return self.email
 
-
 class Post(models.Model):
+
+
     title = models.CharField(max_length=255)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
-
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posts')
     def __str__(self):
         return self.title
+
+
+
+
 
 class Comment(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
