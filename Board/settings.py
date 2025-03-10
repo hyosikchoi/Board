@@ -36,8 +36,45 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
-    'boardApp'
+    'rest_framework_simplejwt',
+    'boardApp',
+    'drf_spectacular',
+    'drf_spectacular_sidecar'
 ]
+
+REST_FRAMEWORK = {
+    # YOUR SETTINGS
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+
+# JWT 설정
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # 액세스 토큰 유효시간
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),  # 리프레시 토큰 유효시간
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Your Project API',
+    'DESCRIPTION': 'Your project description',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    # OTHER SETTINGS
+    # 'SWAGGER_UI_DIST': '/static/swagger-ui/',  # shorthand to use the sidecar instead
+    # 'SWAGGER_UI_SETTINGS': {
+    #     'deepLinking': True,
+    #     'theme': 'dark',
+    #     'validatorUrl': None,
+    # }
+}
+
+AUTH_USER_MODEL = 'boardApp.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

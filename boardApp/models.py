@@ -3,14 +3,14 @@ from xml.dom.minidom import Comment
 from django.db import models
 
 # Create your models here.
-from django.contrib.auth.models import AbstractUser,AbstractBaseUser
+from django.contrib.auth.models import AbstractUser, AbstractBaseUser, PermissionsMixin
 
 from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
 from django.db.models import Case, When, Subquery
 
 
-class User(models.Model):
+class User(AbstractBaseUser, PermissionsMixin):
     """사용자 모델"""
     ROLE_CHOICES = [
         ('admin', 'Admin'),
@@ -26,6 +26,8 @@ class User(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    USERNAME_FIELD = 'email'
 
     def set_password(self, raw_password):
         """비밀번호 해싱 후 저장"""

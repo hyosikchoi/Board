@@ -1,18 +1,20 @@
+from django.contrib.auth.views import LoginView
 from rest_framework.routers import DefaultRouter
 from rest_framework.urlpatterns import format_suffix_patterns
 from django.urls import path, include
-from .views import SignupView, LoginView, PostCreateAPIView, PostUpdateAPIView, PostDeleteAPIView, PostAPIView, \
+from .views import SignupView, LoginViewSet, PostCreateAPIView, PostUpdateAPIView, PostDeleteAPIView, PostAPIView, \
     CommentAPIView, PostListViewSet
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 router = DefaultRouter()
 
 # basename='posts' 을 정의할지 말지는 선택.
 # 정의할 시 viewSet에서 query_set 을 지정 안해줘도 괜찮음.
 router.register(r'posts', PostListViewSet, basename='posts')
+router.register(r'login', LoginViewSet, basename='login')
 
 urlpatterns = [
     path('signup/', SignupView.as_view(), name='signup'),
-    path('login/', LoginView.as_view(), name='login'),
 
     path('', include(router.urls)),  # 게시글 리스트
 
@@ -24,6 +26,12 @@ urlpatterns = [
 
     path('posts/<int:pk>/comment/', CommentAPIView.as_view(), name='comment-create'),
 
-    path('posts/<int:pk>/comment/<int:comment_id>', CommentAPIView.as_view(), name='comment-ud')
+    path('posts/<int:pk>/comment/<int:comment_id>', CommentAPIView.as_view(), name='comment-ud'),
+
+    # YOUR PATTERNS
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    # Optional UI:
+    path('api/schema/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
 ]

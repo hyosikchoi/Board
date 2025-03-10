@@ -3,16 +3,22 @@ from django.db.models import Prefetch, Count, F, Value, Subquery, Sum
 from django.forms.models import model_to_dict
 from django.shortcuts import render
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
 
 # Create your views here.
 from rest_framework.views import APIView
-from .serializers import UserSignupSerializer, CommentSerializer, StatisticsSerializer
+from rest_framework.viewsets import GenericViewSet
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from .serializers import UserSignupSerializer, CommentSerializer, StatisticsSerializer, UserLoginSerializer, \
+    UserTokenSerializer
 from django.shortcuts import get_object_or_404
 from .models import User, Comment
 
 from rest_framework.response import Response
-from rest_framework import status, mixins, viewsets
+from rest_framework import status, mixins, viewsets, permissions
 from .models import Post
 from .serializers import PostSerializer
 
@@ -28,17 +34,31 @@ class SignupView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # 로그인
-class LoginView(APIView):
-    """로그인 API"""
-    def post(self, request):
-        email = request.data.get('email')
-        password = request.data.get('password')
+class LoginViewSet(viewsets.GenericViewSet):
+    serializer_class = UserLoginSerializer
+    permission_classes = [AllowAny]
 
-        user = get_object_or_404(User, email=email)  # 이메일로 사용자 찾기
-        if not user.check_password(password):  # 비밀번호 검증
-            return Response({"error": "이메일 또는 비밀번호가 올바르지 않습니다."}, status=status.HTTP_401_UNAUTHORIZED)
+    @extend_schema(
+        request=UserLoginSerializer,
+        responses={201: UserTokenSerializer},
+        methods=["POST"]
+    )
 
-        return Response({"message": "로그인 성공", "User": user.id}, status=status.HTTP_200_OK)
+    def create(self, request):
+      login_serializer = UserLoginSerializer(data=request.data)
+      if login_serializer.is_valid():
+         user = login_serializer.validated_data['user']
+         refresh = RefreshToken.for_user(user)
+         token_serializer = UserTokenSerializer(
+             instance={
+                 'access_token': str(refresh.access_token),
+                 'refresh_token': str(refresh)
+             }
+         )
+
+         return Response(token_serializer.data, status=status.HTTP_200_OK)
+
+      return Response(login_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # 게시글 관련
@@ -92,7 +112,7 @@ class PostListViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
     # drf-spectacular 붙이기
     # 로그인 기능 붙이기 Authorization: Bearer xxxxx
     # delete -> DELETE / update -> PUT 구현 -> 작성자만 가능 /게시글 id/
-    # 금요일
+    # 목요일
     # 내가 보기좋게 나누기
     # Optional:
     # - 관리자는 모든 글 삭제 수정 가능
