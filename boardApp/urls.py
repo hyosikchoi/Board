@@ -2,7 +2,7 @@ from django.contrib.auth.views import LoginView
 from rest_framework.routers import DefaultRouter
 from rest_framework.urlpatterns import format_suffix_patterns
 from django.urls import path, include
-from .views import SignupView, LoginViewSet, PostCreateAPIView, PostUpdateAPIView, PostDeleteAPIView, PostAPIView, \
+from .views import SignupView, LoginViewSet, PostCreateAPIView,PostAPIView, \
     CommentAPIView, PostListViewSet
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
@@ -21,8 +21,6 @@ urlpatterns = [
     path('posts/<int:pk>/', PostAPIView.as_view(), name='post-detail'),  # 게시글 디테일
 
     path('posts/create/', PostCreateAPIView.as_view(), name='post-create'),  # 게시글 생성
-    path('posts/<int:pk>/update/', PostUpdateAPIView.as_view(), name='post-update'),  # 게시글 수정
-    path('posts/<int:pk>/delete/', PostDeleteAPIView.as_view(), name='post-delete'),  # 게시글 삭제
 
     path('posts/<int:pk>/comment/', CommentAPIView.as_view(), name='comment-create'),
 

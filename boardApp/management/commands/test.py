@@ -9,9 +9,9 @@ from boardApp.models import User, Post, Comment
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        from django.conf import settings
-        settings
-        print("hello")
+        # query = Comment.objects.select_related('author').order_by('-created_at')
+        query2 = Post.objects.prefetch_related('comments', 'comments__author').order_by('-created_at')
+        print(query2)
         # posts = Post.objects.select_related('author').prefetch_related('comments').all().order_by('-created_at')
         # posts = Post.objects.select_related("comment").filter(start__lt=today()).aggregate(_sum=Sum(F("comment__price"))).
         #

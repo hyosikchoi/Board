@@ -1,16 +1,20 @@
+from datetime import datetime
+
+import jwt
 from django.db.migrations import serializer
 from django.db.models import Prefetch, Count, F, Value, Subquery, Sum
 from django.forms.models import model_to_dict
 from django.shortcuts import render
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, extend_schema_serializer
 from rest_framework.decorators import action
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny
 
 # Create your views here.
 from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 
 from .serializers import UserSignupSerializer, CommentSerializer, StatisticsSerializer, UserLoginSerializer, \
     UserTokenSerializer
@@ -62,7 +66,7 @@ class LoginViewSet(viewsets.GenericViewSet):
 
 
 # 게시글 관련
-class PostListViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+class PostListViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, mixins.DestroyModelMixin,viewsets.GenericViewSet):
     serializer_class = PostSerializer
 
     def get_queryset(self):
@@ -73,6 +77,77 @@ class PostListViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
 
         return Post.objects.select_related('author').prefetch_related(comment_prefetch).all().order_by('-created_at')
 
+    @extend_schema_serializer(
+       exclude_fields= ('comments',)
+    )
+    def update(self, request, *args, **kwargs):
+        try:
+            auth_header = request.headers.get('Authorization')
+            if not auth_header or not auth_header.startswith('Bearer'):
+                return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+            try:
+                token = auth_header.split(' ')[1]  # Bearer 토큰 가져오기
+                decoded_token = AccessToken(token)  # access token 파싱하기
+
+                exp_timestamp = decoded_token['exp']  # 만료기간
+
+                if datetime.now().timestamp() > exp_timestamp:
+                    return Response(data={'detail' : 'Token expired'}, status=status.HTTP_401_UNAUTHORIZED)
+
+                user_id = decoded_token['user_id']
+                pk = self.kwargs['pk']
+                post_or_response = get_object_or_403(model=Post, pk=pk, user_id=user_id)
+
+                if isinstance(post_or_response, Response):
+                    return post_or_response  # 에러 응답 반환
+
+                post = post_or_response
+
+                update_title = request.data.get('title')
+                update_content = request.data.get('content')
+
+                post.title = update_title
+                post.content = update_content
+                post.updated_at = timezone.now()
+                # 기존 Post 객체를 업데이트할 serializer 생성
+                serializer = PostSerializer(post, data=request.data, partial=True)
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(serializer.data)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            except Exception as e:
+                return Response(status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            auth_header = request.headers.get('Authorization')
+            if not auth_header or not auth_header.startswith('Bearer'):
+                return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+            try:
+                token = auth_header.split(' ')[1] # Bearer 토큰 가져오기
+                decoded_token = AccessToken(token) # access token 파싱하기
+
+                exp_timestamp = decoded_token['exp'] # 만료기간
+
+                if datetime.now().timestamp() > exp_timestamp:
+                    return Response(data={'detail' : 'Token expired'}, status=status.HTTP_401_UNAUTHORIZED)
+
+                user_id = decoded_token['user_id']
+                pk = self.kwargs['pk'] # pathvariable 에서 게시글 번호 가져오기
+                post_or_response = get_object_or_403(model=Post, pk=pk, user_id=user_id)
+                if isinstance(post_or_response, Response):
+                    return post_or_response
+                post_or_response.delete()  # 게시글 삭제
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            except Exception as e:
+                return Response(status=status.HTTP_401_UNAUTHORIZED)
+        except Post.DoesNotExist:
+            return Response({'detail': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
 
     # filter_backends = (filters.SearchFilter, filters.OrderingFilter)
     # def get(self, request, *args, **kwargs):
@@ -166,46 +241,6 @@ def get_object_or_403(model, pk, user_id, author_field='author_id'):
         return Response({'detail': 'Invalid user_id'}, status=status.HTTP_400_BAD_REQUEST)
 
     return obj  # 검증된 객체 반환
-
-
-class PostUpdateAPIView(APIView):
-    def put(self, request, pk=None, *args, **kwargs):
-        try:
-            user_id = request.data.get('user_id')
-            post_or_response = get_object_or_403(model=Post,pk=pk, user_id=user_id)
-
-            if isinstance(post_or_response, Response):
-                return post_or_response # 에러 응답 반환
-
-            post = post_or_response
-
-            update_title = request.data.get('title')
-            update_content = request.data.get('content')
-
-            post.title = update_title
-            post.content = update_content
-            post.updated_at = timezone.now()
-            # 기존 Post 객체를 업데이트할 serializer 생성
-            serializer = PostSerializer(post, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Post.DoesNotExist:
-            return Response({'detail': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-class PostDeleteAPIView(APIView):
-    def delete(self, request, pk=None, *args, **kwargs):
-        try:
-            user_id = request.data.get('user_id')
-            post_or_response = get_object_or_403(model=Post, pk=pk, user_id=user_id)
-            if isinstance(post_or_response, Response):
-                return post_or_response
-            post_or_response.delete()  # 게시글 삭제
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Post.DoesNotExist:
-            return Response({'detail': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
 # 댓글 관련
